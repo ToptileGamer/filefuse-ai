@@ -8,15 +8,12 @@ dotenv.config();
 
 const app = express();
 
-// ----------------------
-// CORS CONFIGURATION
-// ----------------------
 app.use(
   cors({
     origin: [
       "http://localhost:5500",
       "http://127.0.0.1:5500",
-      "https://filmfuseai.netlify.app", // your Netlify frontend
+      "https://filmfuseai.netlify.app"
     ],
     methods: ["GET", "POST"],
   })
@@ -24,41 +21,35 @@ app.use(
 
 app.use(express.json());
 
-// ----------------------
+// -------------------------
 // GROQ CLIENT
-// ----------------------
-if (!process.env.GROQ_API_KEY) {
-  console.warn("⚠ GROQ_API_KEY is not set in environment variables!");
-}
-
+// -------------------------
 const client = new Groq({
   apiKey: process.env.GROQ_API_KEY,
 });
 
-// ----------------------
-// RECOMMENDATION API
-// ----------------------
+// -------------------------
+// MOVIE RECOMMENDER API
+// -------------------------
 app.post("/api/recommend", async (req, res) => {
   try {
     const { languages, genres, mood, age } = req.body;
 
     const prompt = `
-Return STRICT JSON only. No extra commentary.
+Return STRICT JSON only. No extra text.
 
-Generate 10 movie recommendations based on:
+Generate 10 movie recommendations using:
+Languages: ${languages}
+Genres: ${genres}
+Mood: ${mood}
+Age: ${age}
 
-Languages: ${JSON.stringify(languages)}
-Genres: ${JSON.stringify(genres)}
-Mood: ${JSON.stringify(mood)}
-Age Rating: ${JSON.stringify(age)}
-
-Return JSON exactly in this shape:
-
+Return exactly:
 {
   "movies": [
     {
       "title": "",
-      "year": 0,
+      "year": 2020,
       "language": "",
       "age_rating": "",
       "genres": [],
@@ -69,53 +60,31 @@ Return JSON exactly in this shape:
 }
 `;
 
-    const result = await client.chat.completions.create({
-      // modern Groq Llama 3.1 model
-      model: "llama-3.1-70b-versatile",
-      response_format: { type: "json_object" }, // force JSON
-      temperature: 0.6,
+    const completion = await client.chat.completions.create({
+      model: "llama-3.1-70b-versatile",   // ✅ NEW MODEL
+      temperature: 0.7,
+      response_format: { type: "json_object" },
       messages: [
-        {
-          role: "system",
-          content: "You must ALWAYS respond with valid JSON only.",
-        },
+        { role: "system", content: "You must return VALID JSON. No markdown." },
         { role: "user", content: prompt },
       ],
     });
 
-    const content = result?.choices?.[0]?.message?.content?.trim() || "";
-
-    let json;
-    try {
-      json = JSON.parse(content);
-    } catch (parseErr) {
-      console.error("❌ JSON parse failed. Raw Groq content:\n", content);
-      throw new Error("Groq returned invalid JSON");
-    }
-
-    if (!json.movies || !Array.isArray(json.movies)) {
-      console.error("❌ JSON did not contain movies[]:\n", json);
-      throw new Error("Groq JSON had wrong shape");
-    }
+    const raw = completion.choices[0].message.content;
+    const json = JSON.parse(raw);
 
     res.json(json);
-  } catch (error) {
-    console.error("🔥 Groq / backend error:", error);
 
-    const msg =
-      error?.response?.data?.error?.message ||
-      error?.message ||
-      "AI failed to generate JSON";
-
-    res.status(500).json({ error: msg });
+  } catch (err) {
+    console.error("🔥 Backend Error:", err);
+    res.status(500).json({
+      error: err.message || "AI error",
+    });
   }
 });
 
-// ----------------------
-// PORT (LOCAL + RENDER)
-// ----------------------
+// -------------------------
 const PORT = process.env.PORT || 4000;
-
-app.listen(PORT, () => {
-  console.log(`FilmFuseAI backend running on port ${PORT}`);
-});
+app.listen(PORT, () =>
+  console.log(`FilmFuse backend running on port ${PORT}`)
+);
