@@ -1,3 +1,7 @@
+// =======================
+// FilmFuseAI - script.js
+// =======================
+
 // Multi-step state
 let currentStep = 1;
 const totalSteps = 4;
@@ -42,14 +46,14 @@ function updateThemeToggleIcon(theme) {
 
 /* ------------ CHIP SELECTION LOGIC ------------ */
 function setupChipSelection() {
-  document.querySelectorAll(".options").forEach(container => {
+  document.querySelectorAll(".options").forEach((container) => {
     const single = container.classList.contains("single-select");
 
-    container.querySelectorAll(".chip").forEach(chip => {
+    container.querySelectorAll(".chip").forEach((chip) => {
       chip.addEventListener("click", () => {
         if (single) {
-          // Only one can be active
-          container.querySelectorAll(".chip").forEach(c =>
+          // Only one can be active in this group
+          container.querySelectorAll(".chip").forEach((c) =>
             c.classList.remove("selected")
           );
           chip.classList.add("selected");
@@ -66,22 +70,22 @@ function showStep(step) {
   currentStep = step;
 
   // Toggle step visibility
-  document.querySelectorAll(".form-step").forEach(stepEl => {
+  document.querySelectorAll(".form-step").forEach((stepEl) => {
     const s = Number(stepEl.getAttribute("data-step"));
     stepEl.classList.toggle("active", s === step);
   });
 
   // Update dots
-  document.querySelectorAll("[data-step-dot]").forEach(dot => {
+  document.querySelectorAll("[data-step-dot]").forEach((dot) => {
     const s = Number(dot.getAttribute("data-step-dot"));
     dot.classList.toggle("active", s === step);
   });
 
-  // Step number
+  // Step number text
   const stepNumEl = document.getElementById("step-number");
   if (stepNumEl) stepNumEl.textContent = String(step);
 
-  // Staggered field animation within this step
+  // Staggered animation for fields inside the active step
   const activeStep = document.querySelector(`.form-step[data-step="${step}"]`);
   if (activeStep) {
     const fields = activeStep.querySelectorAll(".field");
@@ -125,13 +129,30 @@ function scrollToResults() {
   }
 }
 
-/* ------------ GROQ BACKEND CALL ------------ */
+/* ------------ SKELETON SHIMMER UI ------------ */
+function createSkeletonHTML(count) {
+  let html = "";
+  for (let i = 0; i < count; i++) {
+    html += `
+      <div class="skeleton-card">
+        <div class="skeleton-lines">
+          <div class="skeleton-line" style="width:70%;"></div>
+          <div class="skeleton-line" style="width:55%;"></div>
+          <div class="skeleton-line" style="width:90%;"></div>
+        </div>
+      </div>
+    `;
+  }
+  return html;
+}
+
+/* ------------ GROQ BACKEND CALL (Netlify Function) ------------ */
 async function generateMovies() {
   // Helper to get selected chip values
   const getSelectedList = (id) => {
     const container = document.getElementById(id);
     if (!container) return [];
-    return Array.from(container.querySelectorAll(".chip.selected")).map(c =>
+    return Array.from(container.querySelectorAll(".chip.selected")).map((c) =>
       c.textContent.trim().toLowerCase()
     );
   };
@@ -152,8 +173,12 @@ async function generateMovies() {
   const summary = document.getElementById("query-summary");
   if (summary) {
     summary.innerHTML = `
-      <span class="query-pill">Lang: ${languages.length ? languages.join(", ") : "any"}</span>
-      <span class="query-pill">Genres: ${genres.length ? genres.join(", ") : "any"}</span>
+      <span class="query-pill">Lang: ${
+        languages.length ? languages.join(", ") : "any"
+      }</span>
+      <span class="query-pill">Genres: ${
+        genres.length ? genres.join(", ") : "any"
+      }</span>
       <span class="query-pill">Mood: ${payload.mood || "any"}</span>
       <span class="query-pill">Age: ${payload.age || "any"}</span>
     `;
@@ -162,13 +187,21 @@ async function generateMovies() {
   const movieList = document.getElementById("movieList");
   if (!movieList) return;
 
-  // Show skeleton loaders
+  // Show skeleton loaders while waiting
   movieList.innerHTML = createSkeletonHTML(3);
 
   try {
-    const res = await fetch("/.netlify/functions/recommend", {
+    // Decide which URL to call:
+    // - Netlify site or Netlify Dev (localhost:8888): use relative path
+    // - Static local preview (127.0.0.1:5500 etc.): call the deployed backend
+    const isNetlifyEnv =
+      location.hostname.endsWith("netlify.app") || location.port === "8888";
 
+    const endpoint = isNetlifyEnv
+      ? "/.netlify/functions/recommend"
+      : "https://filmfuseai.netlify.app/.netlify/functions/recommend";
 
+    const res = await fetch(endpoint, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
@@ -176,14 +209,14 @@ async function generateMovies() {
 
     if (!res.ok) {
       const errBody = await res.json().catch(() => ({}));
-      throw new Error(errBody.error || "Backend error");
+      throw new Error(errBody.error || `Backend error (${res.status})`);
     }
 
     const data = await res.json();
     const movies = data.movies || [];
 
     if (!movies.length) {
-      movieList.innerHTML = `<p class="placeholder">No movies returned. Try adjusting your filters and generate again.</p>`;
+      movieList.innerHTML = `<p class="placeholder">No movies returned. Try tweaking your preferences and generate again.</p>`;
       return;
     }
 
@@ -196,11 +229,21 @@ async function generateMovies() {
         <div class="movie-content">
           <div class="movie-title">
             ${movie.title}
-            ${movie.year ? `<span style="color:#9ca3af;"> (${movie.year})</span>` : ""}
+            ${
+              movie.year
+                ? `<span style="color:#9ca3af;"> (${movie.year})</span>`
+                : ""
+            }
           </div>
           <div class="movie-meta">
-            ${(movie.language || "").toUpperCase()} · Rated ${movie.age_rating || "?"}
-            ${movie.genres && movie.genres.length ? " · " + movie.genres.join(", ") : ""}
+            ${(movie.language || "").toUpperCase()} · Rated ${
+        movie.age_rating || "?"
+      }
+            ${
+              movie.genres && movie.genres.length
+                ? " · " + movie.genres.join(", ")
+                : ""
+            }
           </div>
           <div class="movie-desc">${movie.short_reason || ""}</div>
         </div>
@@ -210,26 +253,11 @@ async function generateMovies() {
 
     scrollToResults();
   } catch (err) {
-    console.error(err);
-    movieList.innerHTML = `<p class="placeholder" style="color:#ef4444;">Error: ${err.message}</p>`;
+    console.error("Error in generateMovies:", err);
+    movieList.innerHTML = `<p class="placeholder" style="color:#ef4444;">Error: ${
+      err.message || "AI failed to generate recommendations."
+    }</p>`;
   }
-}
-
-/* ------------ SKELETON SHIMMER UI ------------ */
-function createSkeletonHTML(count) {
-  let html = "";
-  for (let i = 0; i < count; i++) {
-    html += `
-      <div class="skeleton-card">
-        <div class="skeleton-lines">
-          <div class="skeleton-line" style="width:70%;"></div>
-          <div class="skeleton-line" style="width:55%;"></div>
-          <div class="skeleton-line" style="width:90%;"></div>
-        </div>
-      </div>
-    `;
-  }
-  return html;
 }
 
 /* ------------ EXPOSE FUNCTIONS TO HTML (onclick) ------------ */
