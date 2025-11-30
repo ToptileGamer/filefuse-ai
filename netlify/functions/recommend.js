@@ -59,14 +59,15 @@ Return exactly:
 `;
 
     const completion = await client.chat.completions.create({
-      model: "llama-3.1-70b-versatile",
-      temperature: 0.7,
-      response_format: { type: "json_object" },
-      messages: [
-        { role: "system", content: "You must return VALID JSON. No markdown." },
-        { role: "user", content: prompt },
-      ],
-    });
+  model: "llama-3.3-70b-versatile",
+  temperature: 0.7,
+  response_format: { type: "json_object" },
+  messages: [
+    { role: "system", content: "You must return VALID JSON. No markdown." },
+    { role: "user", content: prompt },
+  ],
+});
+
 
     const raw = completion.choices[0].message.content;
     const json = JSON.parse(raw);
