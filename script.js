@@ -166,7 +166,8 @@ async function generateMovies() {
   movieList.innerHTML = createSkeletonHTML(3);
 
   try {
-    const res = await fetch("http://localhost:4000/api/recommend", {
+    const res = await fetch("https://filmfuse-backend.onrender.com/api/recommend", {
+
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
@@ -236,3 +237,4 @@ window.scrollToResults = scrollToResults;
 window.nextStep = nextStep;
 window.prevStep = prevStep;
 window.generateMovies = generateMovies;
+
