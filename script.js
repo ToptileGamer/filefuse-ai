@@ -166,7 +166,8 @@ async function generateMovies() {
   movieList.innerHTML = createSkeletonHTML(3);
 
   try {
-    const res = await fetch("https://filmfuse-backend.onrender.com/api/recommend", {
+    const res = await fetch("/.netlify/functions/recommend", {
+
 
       method: "POST",
       headers: { "Content-Type": "application/json" },
