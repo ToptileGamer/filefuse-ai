@@ -1,9 +1,8 @@
 {
   "name": "filmfuse-backend",
   "version": "1.0.0",
-  "description": "FilmFuseAI backend using Express + Groq",
-  "main": "server.js",
   "type": "module",
+  "main": "server.js",
   "scripts": {
     "start": "node server.js"
   },
