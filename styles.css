@@ -701,3 +701,10 @@ footer {
   0%   { background-position: 200% 0; }
   100% { background-position: -200% 0; }
 }
+.brand-logo {
+  height: 48px;
+  width: 48px;
+  object-fit: contain;
+  margin-right: 12px;
+  border-radius: 8px;      /* clean rounded look */
+}
